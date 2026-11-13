@@ -1,0 +1,1 @@
+{"id":"4aa6579d607505c8c642","title":"viable/strict/1794545416","url":"https://github.com/pytorch/pytorch/releases/tag/viable%2Fstrict%2F1794545416","source":"PyTorch releases","published":"2026-11-13T00:24:26+00:00","fetched":"2026-11-13T06:27:15.782043+00:00","excerpt":"[distributed] Build NCCL EP by default so TokenSwitchNCCL is enabled …","topic":"System design","score":67}

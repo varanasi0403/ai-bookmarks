@@ -1,16 +1,20 @@
 name: Daily RSS collection
 on:
   schedule:
-    - cron: '30 1 * * *' # Around 07:00 Asia/Kolkata; GitHub may delay scheduled jobs.
+    - cron: '30 1 * * *' # About 07:00 Asia/Kolkata; GitHub may delay scheduled jobs.
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/daily-rss.yml'
+      - 'cloud/scripts/publish_feed.py'
+      - 'app/main.py'
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: daily-rss-collection
   cancel-in-progress: false
 jobs:
   collect:
-    if: ${{ vars.SITE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -22,8 +26,16 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install -r requirements.txt
-      - name: Collect RSS and publish to AI BookMarks
-        env:
-          SITE_URL: ${{ vars.SITE_URL }}
-          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
-        run: .venv/bin/python cloud/scripts/collect.py
+      - name: Collect RSS into the public news snapshot
+        run: .venv/bin/python cloud/scripts/publish_feed.py
+      - name: Persist the refreshed feed
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add feed/
+          if git diff --cached --quiet; then
+            echo 'No feed changes to publish.'
+          else
+            git commit -m 'Refresh daily RSS feed'
+            git push
+          fi

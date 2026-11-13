@@ -236,7 +236,7 @@ async def status():
                 'url': url, 'enabled': name in selected} for name, url, _ in SOURCES]
     return {'last_refresh': get_state('last_refresh'), 'refresh': get_state('refresh', {'running': False}),
             'sources': sources, 'refresh_error': get_state('refresh_error'),
-            'preferences': preferences(), 'topics': list(TOPICS)}
+            'preferences': preferences(), 'topics': list(TOPICS), 'summary_available': False}
 
 
 @app.get('/api/articles')

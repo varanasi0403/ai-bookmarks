@@ -15,3 +15,4 @@ cloud/.deploy-state.json
 cloud/.deploy-secrets.json
 cloud/.dev.vars
 cloud/.cloudflare/
+cloud/.summary.env
