@@ -1,6 +1,6 @@
 # AI BookMarks · Your AI ecosystem RSS reader
 
-A dark-mode RSS reader for AI applications, model releases and weights, libraries, training, system design, local AI, routing tools, and optional Oracle / OCI coverage. It uses publisher excerpts and keyword filtering. No language model, AI summary, subscription, or API key is required.
+A dark-mode RSS reader for AI applications, model releases and weights, libraries, training, system design, local AI, routing tools, and optional Oracle / OCI coverage. It uses publisher excerpts and keyword filtering. RSS reading requires no language model or API key. The hosted app also offers optional Groq-powered summaries.
 
 ## Run
 
@@ -16,7 +16,7 @@ Open http://localhost:8080. The app has no password. Dependencies stay in `.venv
 
 Collection runs on startup when due, every 24 hours by default, and whenever you click **Refresh briefing**. Change the interval (1–168 hours), topics, and enabled source feeds under **Customize AI BookMarks**.
 
-Articles, bookmarks, read state, preferences, and the last collection time are stored in `data/signal.db`. Removing AI integration does not remove any existing articles or bookmarks. Refreshes add new URLs without resetting saved/read state. Collected history is not automatically deleted; **All collected** includes older stored articles. The default screen shows the past seven days and eight diverse picks, with **Show more signals** for more.
+Articles, bookmarks, read state, preferences, and the last collection time are stored in `data/signal.db`. Removing AI integration does not remove any existing articles or bookmarks. Refreshes add new URLs without resetting saved/read state. Collected history is not automatically deleted; **All collected** includes older stored articles. The default screen shows the past seven days and eight diverse picks, with **Show more updates** for more.
 
 The scheduler works while the server is running and awake. If the laptop sleeps or the process stops, collection resumes when it runs again and refreshes if overdue. It cannot guarantee catching every post published while offline: publishers can limit how much history their feeds retain. Each collection inspects up to 35 entries per source and accepts dated entries from the past 30 days. Missing publication dates are labeled and use collection time for filtering. Source errors appear under **Sources**; existing data stays available.
 
@@ -34,9 +34,9 @@ The app serves your local network on port 8080 by default. On a phone connected 
 
 ## Cloud hosting
 
-A cloud edition is prepared in `cloud/`. It uses Cloudflare Workers + D1 and a daily GitHub Actions RSS collector. See [cloud/README.md](cloud/README.md) for deployment, free-tier limits, and verification. It is not live until Cloudflare deployment and the first scheduled-collector run have been verified.
+The [live cloud reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) uses Cloudflare Workers, GitHub-hosted RSS snapshots, D1 summary caching, and a daily GitHub Actions collector. The first cloud collection succeeded. See [cloud/README.md](cloud/README.md) and the [component and cost overview](docs/AI-BookMarks-Overview.md).
 
-The public edition shares news while keeping bookmarks/read state/preferences in each visitor's browser. The local edition continues to share a personal SQLite reading list across your devices on the same Wi-Fi. RSS collection does not depend on AI; optional open-weight cloud summaries can be evaluated later.
+The public edition shares news while keeping bookmarks/read state/preferences in each visitor's browser. The local edition continues to share a personal SQLite reading list across your devices on the same Wi-Fi. RSS collection does not depend on AI; optional summaries use the open-weight GPT-OSS 20B model hosted by Groq. Results are cached with a site-wide cap of 20 new calls per UTC day.
 
 ## Checks and data
 

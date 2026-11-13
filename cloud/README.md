@@ -1,52 +1,40 @@
 # AI BookMarks hosted edition
 
-This edition serves the dark RSS reader on Cloudflare Workers with a persistent D1 news database. A daily GitHub Actions job runs the existing Python collector at approximately 07:00 Asia/Kolkata and publishes source-grounded RSS entries. Neither the app nor collection requires an awake laptop or a model API.
+[Live reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) · [Component and cost overview](../docs/AI-BookMarks-Overview.md)
 
-## Public reader behavior
+Cloudflare Workers serves the dark, responsive reader. GitHub Actions collects RSS around 07:00 IST and commits public JSON snapshots under `feed/`, using only the built-in GITHUB_TOKEN. No deployment secret is required for daily RSS collection. The first workflow run succeeded. Bookmarks, read state and preferences remain in each visitor's browser; they do not sync between devices.
 
-News is shared and read-only. Topics, enabled feeds, bookmarks and read state belong to each visitor's browser (`localStorage`). Different browsers/devices do not sync personal state; no account is required. Saving snapshots keeps a saved article available when it leaves the latest-news response. Clearing browser data clears personal preferences and bookmarks. No local bookmarks, read state, profile, or API keys are uploaded by the initial seeding operation.
+## Build and deploy
 
-The server retains collected news in D1 and serves the latest 5,000 rows per response. Publisher excerpts are shown, not AI-generated summaries. Some feeds publish titles only. Responses are cached for up to five minutes. **Sync latest feed** loads the current published feed; public visitors cannot trigger cloud collection or change other readers' settings.
-
-## Deployment
-
-Cloud dependencies live in `cloud/node_modules`, separate from `.venv` and global packages. With Node.js 22+ and pnpm installed:
+Python packages belong in the root `.venv`; Node packages belong in `cloud/node_modules`. With Node 22+ and pnpm available:
 
 ```sh
-cd cloud
-pnpm install
-cd ..
+pnpm --dir cloud install --frozen-lockfile
 .venv/bin/python cloud/scripts/export_catalog.py
 node cloud/scripts/build.mjs
 python3 cloud/manage.py login --scopes account:read user:read workers:write workers_scripts:write d1:write
-python3 cloud/manage.py d1 create ai-bookmarks-rss --binding DB --update-config
-```
-
-Review the D1 binding in `cloud/wrangler.jsonc`. Replace the local-preview-only database ID with the ID Cloudflare actually returns; never deploy the placeholder. If a database already exists, reuse its returned ID instead of creating another one.
-
-Create a strong random `INGEST_TOKEN` and put it in the Worker's secret store using `python3 cloud/manage.py secret put INGEST_TOKEN`. Keep a local ignored copy if needed; never commit secrets. Apply schema and publish:
-
-```sh
 python3 cloud/manage.py d1 migrations apply DB --remote
 python3 cloud/manage.py deploy
 ```
 
-Set the GitHub repository variable `SITE_URL` to the returned HTTPS origin and the repository secret `INGEST_TOKEN` to the same ingestion token. The workflow is skipped until `SITE_URL` exists. Run **Daily RSS collection → Run workflow** once and check that it succeeds. Verify the hosted Sources screen and collection timestamp afterwards. Set repository Actions billing limits so the daily task cannot cause spending beyond the included allowance if that allowance is shared with other projects.
+Reuse the existing D1 binding in `wrangler.jsonc`. For a new account, create a database and replace both account/database IDs with the actual returned values before deploying. `manage.py` keeps Wrangler configuration and logs project-local. Generated frontend assets are ignored; rebuild them before deployment. Deployment is manual; daily RSS publication does not redeploy the Worker.
 
-For initial history seeding, set `SITE_URL` and `INGEST_TOKEN` in the environment (or ignored `cloud/.dev.vars`) and run `.venv/bin/python cloud/scripts/collect.py --seed-existing`. This exports only public news fields from the existing local database. A successful publication is verified through an authenticated metadata readback.
+`cloud/src/index.js` reads public snapshots from `varanasi0403/ai-bookmarks`. If forking, change this repository constant. Initial news remains in D1 as a fallback for non-successful upstream responses. Caches may delay updated feed visibility by about five minutes.
 
-## Free-tier behavior
+## Optional summaries
 
-Use the Cloudflare Workers Free plan and D1 Free allowance. GitHub's included Actions compute allowance is shared with other jobs. Free limits, provider terms, and availability can change. The app has no model costs; don't enable paid plans or unbounded paid Actions usage if a strict zero budget is required.
+Create a Groq Free-plan key, then store it using `python3 cloud/manage.py secret put GROQ_API_KEY`. Never commit a key. The optional **AI summary** button uses open-weight `openai/gpt-oss-20b`, based only on the title and at most 1,500 characters of the publisher excerpt; it does not read the full article. RSS works without the key. The key is never sent to visitors.
 
-Scheduled GitHub jobs can be delayed, and failed collection is visible in the Actions run. A failed source does not remove old articles; a job with no successful sources does not replace the last published collection metadata. Public data reads do not need the ingestion token. The authenticated ingestion endpoint accepts only bounded batches, known sources/topics, safe URLs and parameterized SQL statements.
+D1 caches successful summaries and atomically limits the site to 20 new model calls per UTC day. Concurrent requests share pending/cache state. Failed calls count toward the limit. Free-provider failures show a retry message and leave excerpts available. There is no paid fallback. A public visitor can consume the shared daily allowance; cached summaries remain available.
 
-## Verify locally
+## Collector and checks
 
 ```sh
+.venv/bin/python cloud/scripts/publish_feed.py
 node --test cloud/tests/worker.test.mjs
-python3 cloud/manage.py d1 migrations apply DB --local
-python3 cloud/manage.py dev --port 8787
+.venv/bin/python -m unittest discover -s tests -q
 ```
 
-A local `.dev.vars` supplies `INGEST_TOKEN` and `SITE_URL=http://127.0.0.1:8787` for local testing. OAuth state, local database state, deployment secrets, generated assets and `node_modules` are ignored in Git. Deployment tooling keeps its config inside `cloud/.cloudflare` and logs inside `cloud/.wrangler`, rather than changing global package installations.
+The collector starts from the previous snapshot and adds new news. No successful sources means no publication. The active snapshot retains up to 5,000 entries; per-item files support summary lookup for older articles. Original publisher URLs remain available. In GitHub, use **Daily RSS collection → Run workflow** to collect manually; **Sync latest feed** in the reader only reloads published data.
+
+Keep Cloudflare and Groq on Free plans. Standard Actions runners are free for this public repository. Quotas can stop service; paid account upgrades can incur charges. See the linked overview for official pricing references and operating limits.
