@@ -49,11 +49,11 @@ Open `http://<your-laptop-LAN-IP>:8080` on your phone and enter `APP_PASSWORD` f
 
 ## Collection and personalization
 
-- Ten official RSS/Atom endpoints: OpenAI, Hugging Face, Google Research, NVIDIA, LangChain releases, Oracle AI, Oracle Cloud, PyTorch releases, vLLM releases, and Transformers releases.
+- Official RSS/Atom sources (22 endpoints): OpenAI, Hugging Face, Google Research, NVIDIA, LangChain releases, Oracle AI, Oracle Cloud, PyTorch releases, vLLM releases, and Transformers releases, Google DeepMind, Google AI, Google Gen AI SDK, Anthropic SDK, Claude Code, Ollama, Open WebUI, LiteLLM, OmniRoute, LM Studio SDK, OpenRouter Blog, and OpenRouter SDK releases. SDK release feeds cover SDK changes, not every provider announcement.
 - Concurrent collection on startup, on demand, and every 24 hours by default. Configure 1–168 hours in **Tune your signal**. While the server is off or asleep there is no collection; it catches up when running again.
 - Up to 35 entries per source, limited to the past 30 days when dates exist. Missing dates are labeled unavailable and use collection time for filtering. The default screen covers seven days.
 - URL normalization removes tracking parameters and deduplicates matching source URLs. Related coverage across different URLs is not merged.
-- Keyword classification and ranking are deterministic heuristics, not LLM relevance scores. Preferences filter topics before ingestion and in the briefing. The reading list remains accessible across topic changes.
+- Keyword classification and ranking are deterministic heuristics, not LLM relevance scores. Technical relevance filters skip generic announcements; the first picks are diversified across sources, treating Oracle as one family. The initial view shows eight updates, with more available on request. Preferences filter topics before ingestion and in the briefing. The reading list remains accessible across topic changes.
 - Up to 8 previously unsummarized articles per refresh by default (configurable 1–30). This limits calls per refresh, not per calendar day. Only articles from the last seven days are summarized. One proxy failure stops that refresh's model calls.
 - AI sees titles and publisher feed excerpts, not full linked articles. Briefs, relevance explanations, and suggested next steps are grounded in that excerpt; original pages provide complete details. Treat summaries as a reading aid.
 - Source failures are visible under **Sources** and retried next collection. A source can change its RSS endpoint; edit `SOURCES` in `app/main.py` if needed. This is feed monitoring, not exhaustive live web search.
