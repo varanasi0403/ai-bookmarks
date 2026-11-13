@@ -6,11 +6,11 @@ A personal AI news desk for an AI/ML software engineer: applications, agents, li
 
 ```sh
 cd /Users/divyanshvaranasi/Dev/ai-brief
-./setup.sh
-./run.sh
+sh setup.sh
+sh run.sh
 ```
 
-Open http://127.0.0.1:8080. Your generated app password is in `.env`. Setup only installs packages inside `.venv`. Without a configured proxy, the app still collects real publisher excerpts and labels them honestly. It never inserts demo news.
+Open http://127.0.0.1:8080. No app password is required. Setup only installs packages inside `.venv`. Without a configured proxy, the app still collects real publisher excerpts and labels them honestly. It never inserts demo news.
 
 ## Connect your ChatGPT subscription through LiteLLM
 
@@ -30,22 +30,22 @@ Follow the displayed device-code login in your browser. Device-code login must b
 Then start the proxy in one terminal:
 
 ```sh
-./run-proxy.sh
+sh run-proxy.sh
 ```
 
-Restart `./run.sh` in another terminal and click **Refresh briefing**. `litellm.yaml` maps `daily-brief` to `chatgpt/gpt-6.1-sol`; change it if your account requires another supported model. Keep the proxy on loopback and use a single worker. If login expires or gets revoked, rerun `setup_proxy.py`, restart the proxy, and refresh. The app shows a connection notice and retains publisher excerpts when summarization fails.
+Restart `sh run.sh` in another terminal and click **Refresh briefing**. `litellm.yaml` maps `daily-brief` to `chatgpt/gpt-6.1-sol`; change it if your account requires another supported model. Keep the proxy on loopback and use a single worker. If login expires or gets revoked, rerun `setup_proxy.py`, restart the proxy, and refresh. The app shows a connection notice and retains publisher excerpts when summarization fails.
 
 For an existing OpenAI-compatible LiteLLM proxy, set `LITELLM_BASE_URL` (including `/v1`), `LITELLM_MODEL`, and `LITELLM_API_KEY` directly in `.env`, then restart the app. There is no automatic fallback to a separately billed OpenAI API.
 
 ## Phone access
 
-For a phone on the same trusted Wi-Fi, run:
+The server listens on your local network by default. For a phone on the same trusted Wi-Fi, run:
 
 ```sh
-SIGNAL_HOST=0.0.0.0 ./run.sh
+SIGNAL_HOST=0.0.0.0 sh run.sh
 ```
 
-Open `http://<your-laptop-LAN-IP>:8080` on your phone and enter `APP_PASSWORD` from `.env`. Bookmarks and preferences are shared through SQLite. The laptop and server must be running and awake. Local HTTP is intended for trusted Wi-Fi only. For access away from home, use a private VPN such as Tailscale or deploy behind HTTPS with authentication; remote hosting is not configured by this project. Do not port-forward the local HTTP server to the public internet.
+Open `http://<your-laptop-LAN-IP>:8080` on your phone — no app password is required. Bookmarks and preferences are shared through SQLite. The laptop and server must be running and awake. Local HTTP is intended for trusted Wi-Fi only. For access away from home, use a private VPN such as Tailscale or deploy behind HTTPS with authentication; remote hosting is not configured by this project. Do not port-forward the local HTTP server to the public internet.
 
 ## Collection and personalization
 
@@ -64,6 +64,6 @@ Open `http://<your-laptop-LAN-IP>:8080` on your phone and enter `APP_PASSWORD` f
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Tests use a temporary SQLite database and mocked HTTP for feed freshness, deduplication, retained bookmarks, summary payloads, authentication, cross-origin mutation protection, and settings validation. Live network and model integration need a separate run with your login. `requirements.txt` pins the application dependencies. The optional proxy is isolated in `.proxy-venv`; record the working proxy version after login with `.proxy-venv/bin/python -m pip freeze > proxy-requirements.lock` if you want to reproduce it.
+Tests use a temporary SQLite database and mocked HTTP for feed freshness, deduplication, retained bookmarks, summary payloads, password-free access, cross-origin mutation protection, and settings validation. Live network and model integration need a separate run with your login. `requirements.txt` pins the application dependencies. The optional proxy is isolated in `.proxy-venv`; record the working proxy version after login with `.proxy-venv/bin/python -m pip freeze > proxy-requirements.lock` if you want to reproduce it.
 
-Single-user, single-process application. Use one Uvicorn process to avoid duplicate scheduled work. Password auth uses an HttpOnly SameSite cookie; HTTPS connections receive Secure cookies. Credentials never reach the browser UI. Data stays in ignored `data/signal.db`. Back up that file while the server is stopped. Delete `.venv` and `.proxy-venv` to remove installed dependencies; global packages are untouched.
+Single-user, single-process application. Use one Uvicorn process to avoid duplicate scheduled work. The app has no login, as requested. Keep access on trusted Wi-Fi or your private VPN. Set `SIGNAL_HOST=127.0.0.1` for laptop-only use. Credentials never reach the browser UI. Data stays in ignored `data/signal.db`. Back up that file while the server is stopped. Delete `.venv` and `.proxy-venv` to remove installed dependencies; global packages are untouched.

@@ -57,22 +57,22 @@ class SignalTests(unittest.TestCase):
         with m.connect() as db:
             self.assertEqual(db.execute('SELECT ai FROM articles').fetchone()[0], 1)
 
-    def test_api_auth_preferences_bookmarks_and_origin(self):
-        with patch.object(m,'PASSWORD','test-password'):
-            client=TestClient(m.app)
-            self.assertEqual(client.get('/api/status').status_code,401)
-            self.assertEqual(client.post('/api/login',json={'password':'wrong'}).status_code,401)
-            self.assertEqual(client.post('/api/login',json={'password':'test-password'}).status_code,200)
-            self.assertEqual(client.get('/api/status').status_code,200)
-            self.assertEqual(client.put('/api/preferences',json={'topics':['wrong'],'daily_limit':8,'refresh_hours':24}).status_code,400)
-            self.assertEqual(client.put('/api/preferences',json={'topics':['Oracle & OCI'],'daily_limit':3,'refresh_hours':12}).status_code,200)
-            self.assertEqual(m.preferences()['daily_limit'],3)
-            with m.connect() as db:
-                db.execute('INSERT INTO articles(id) VALUES (?)',('saved-test',))
-            self.assertEqual(client.patch('/api/articles/saved-test',json={'saved':True}).status_code,200)
-            self.assertEqual(client.get('/api/articles').json()[0]['saved'],1)
-            self.assertEqual(client.post('/api/refresh',headers={'Origin':'https://evil.example'}).status_code,403)
-            self.assertEqual(client.patch('/api/articles/missing',json={'saved':True}).status_code,404)
+    def test_api_preferences_bookmarks_and_origin_without_password(self):
+        client=TestClient(m.app)
+        self.assertEqual(client.get('/api/status').status_code,200)
+        self.assertEqual(client.put('/api/preferences',json={'topics':['wrong'],'daily_limit':8,'refresh_hours':24}).status_code,400)
+        self.assertEqual(client.put('/api/preferences',json={'topics':['Oracle & OCI'],'daily_limit':3,'refresh_hours':12}).status_code,200)
+        self.assertEqual(m.preferences()['daily_limit'],3)
+        with m.connect() as db:
+            db.execute('INSERT INTO articles(id) VALUES (?)',('saved-test',))
+        self.assertEqual(client.patch('/api/articles/saved-test',json={'saved':True}).status_code,200)
+        self.assertEqual(client.get('/api/articles').json()[0]['saved'],1)
+        self.assertEqual(client.post('/api/refresh',headers={'Origin':'https://evil.example'}).status_code,403)
+        self.assertEqual(client.patch('/api/articles/missing',json={'saved':True}).status_code,404)
+
+    def test_source_diversity_keeps_oracle_optional(self):
+        picks=m.diverse_picks([{'source':'Oracle AI'},{'source':'Oracle Cloud'},{'source':'Ollama releases'},{'source':'OpenAI'}],3)
+        self.assertEqual([a['source'] for a in picks],['Oracle AI','Ollama releases','OpenAI'])
 
     def test_relevance_excludes_generic_updates(self):
         self.assertFalse(m.relevant('Veteran discounts', 'Free workshops in five cities', 'OpenAI'))

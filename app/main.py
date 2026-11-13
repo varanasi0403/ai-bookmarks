@@ -1,14 +1,11 @@
 """Signal: a personal, source-grounded engineering briefing."""
 import asyncio
 import hashlib
-import hmac
 import json
 import logging
 import os
 import re
-import secrets
 import sqlite3
-import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from html import unescape
@@ -29,8 +26,6 @@ DB = Path(os.getenv('SIGNAL_DB', str(ROOT / 'data/signal.db')))
 BASE = os.getenv('LITELLM_BASE_URL', 'http://127.0.0.1:4000/v1').rstrip('/')
 MODEL = os.getenv('LITELLM_MODEL', 'daily-brief')
 KEY = os.getenv('LITELLM_API_KEY', '')
-PASSWORD = os.getenv('APP_PASSWORD', '')
-COOKIE_KEY = os.getenv('COOKIE_SECRET', '') or secrets.token_hex(32)
 TOPICS = {
     'AI applications': ['agent', 'rag', 'application', 'tool use', 'workflow', 'mcp', 'open webui'],
     'Models & weights': ['model', 'llm', 'weights', 'open source', 'multimodal', 'inference', 'decision model', 'gemini', 'claude'],
@@ -266,10 +261,6 @@ async def lifespan(app):
 app = FastAPI(title='Signal · Your AI briefing', lifespan=lifespan)
 
 
-def cookie_value():
-    return hmac.new(COOKIE_KEY.encode(), PASSWORD.encode(), hashlib.sha256).hexdigest()
-
-
 @app.middleware('http')
 async def access(request: Request, call_next):
     path = request.url.path
@@ -277,40 +268,10 @@ async def access(request: Request, call_next):
         origin = request.headers.get('origin')
         if origin and urlsplit(origin).netloc != request.headers.get('host'):
             return JSONResponse({'detail': 'Cross-origin request denied'}, status_code=403)
-    if path.startswith('/api/') and path != '/api/login':
-        if PASSWORD:
-            if not hmac.compare_digest(request.cookies.get('signal_session', ''), cookie_value()):
-                return JSONResponse({'detail': 'Sign in to your briefing'}, status_code=401)
-        elif request.client.host not in ('127.0.0.1', '::1', 'testclient'):
-            return JSONResponse({'detail': 'Set APP_PASSWORD before using another device'}, status_code=403)
     response = await call_next(request)
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['Referrer-Policy'] = 'no-referrer'
     response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'"
-    return response
-
-
-class Login(BaseModel):
-    password: str = Field(max_length=500)
-
-
-login_attempts = {}
-
-
-@app.post('/api/login')
-async def login(body: Login, request: Request):
-    address = request.client.host
-    now = time.monotonic()
-    attempts = [t for t in login_attempts.get(address, []) if now - t < 300]
-    login_attempts[address] = attempts
-    if len(attempts) >= 10:
-        raise HTTPException(429, 'Too many attempts. Wait five minutes.')
-    if not PASSWORD or not hmac.compare_digest(body.password, PASSWORD):
-        attempts.append(now)
-        raise HTTPException(401, 'Incorrect password')
-    login_attempts.pop(address, None)
-    response = JSONResponse({'ok': True})
-    response.set_cookie('signal_session', cookie_value(), httponly=True, samesite='strict', secure=request.url.scheme == 'https', max_age=30*86400)
     return response
 
 
