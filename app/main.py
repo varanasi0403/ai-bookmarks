@@ -1,4 +1,4 @@
-"""Signal: a personal, source-grounded engineering briefing."""
+"""AI BookMarks: a personal, source-grounded engineering briefing."""
 import asyncio
 import hashlib
 import json
@@ -55,7 +55,7 @@ SOURCES = [
     ('OpenRouter Blog', 'https://openrouter.ai/blog/feed.xml', 'AI applications'),
     ('OpenRouter SDK releases', 'https://github.com/OpenRouterTeam/python-sdk/releases.atom', 'Libraries & tools'),
 ]
-log = logging.getLogger('signal')
+log = logging.getLogger('briefly')
 refresh_lock = asyncio.Lock()
 worker_task = None
 
@@ -169,7 +169,7 @@ async def refresh():
     async with refresh_lock:
         set_state('refresh', {'running': True, 'started': datetime.now(timezone.utc).isoformat()})
         try:
-            async with httpx.AsyncClient(follow_redirects=True, timeout=25, headers={'User-Agent': 'SignalBrief/1.0 (personal RSS reader)'}) as client:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=25, headers={'User-Agent': 'AI BookMarksRSS/1.0 (personal RSS reader)'}) as client:
                 selected = preferences()['sources']
                 statuses = await asyncio.gather(*(fetch_source(client, s) for s in SOURCES if s[0] in selected))
                 set_state('sources', statuses)
@@ -212,7 +212,7 @@ async def lifespan(app):
         pass
 
 
-app = FastAPI(title='Signal · Your AI briefing', lifespan=lifespan)
+app = FastAPI(title='AI BookMarks · AI updates', lifespan=lifespan)
 
 
 @app.middleware('http')

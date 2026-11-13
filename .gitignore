@@ -6,3 +6,12 @@ data/
 __pycache__/
 *.pyc
 .DS_Store
+
+node_modules/
+.pnpm-store/
+.wrangler/
+cloud/public/
+cloud/.deploy-state.json
+cloud/.deploy-secrets.json
+cloud/.dev.vars
+cloud/.cloudflare/

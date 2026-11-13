@@ -1,1 +1,1 @@
-"""Signal AI briefing application."""
+"""AI BookMarks RSS application."""

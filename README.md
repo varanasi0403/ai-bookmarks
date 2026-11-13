@@ -1,4 +1,4 @@
-# Signal · Your AI ecosystem RSS reader
+# AI BookMarks · Your AI ecosystem RSS reader
 
 A dark-mode RSS reader for AI applications, model releases and weights, libraries, training, system design, local AI, routing tools, and optional Oracle / OCI coverage. It uses publisher excerpts and keyword filtering. No language model, AI summary, subscription, or API key is required.
 
@@ -14,7 +14,7 @@ Open http://localhost:8080. The app has no password. Dependencies stay in `.venv
 
 ## Daily updates and retained history
 
-Collection runs on startup when due, every 24 hours by default, and whenever you click **Refresh briefing**. Change the interval (1–168 hours), topics, and enabled source feeds under **Tune your signal**.
+Collection runs on startup when due, every 24 hours by default, and whenever you click **Refresh briefing**. Change the interval (1–168 hours), topics, and enabled source feeds under **Customize AI BookMarks**.
 
 Articles, bookmarks, read state, preferences, and the last collection time are stored in `data/signal.db`. Removing AI integration does not remove any existing articles or bookmarks. Refreshes add new URLs without resetting saved/read state. Collected history is not automatically deleted; **All collected** includes older stored articles. The default screen shows the past seven days and eight diverse picks, with **Show more signals** for more.
 
@@ -32,11 +32,11 @@ Cards show cleaned publisher excerpts, shortened to 440 characters, with **Read 
 
 The app serves your local network on port 8080 by default. On a phone connected to the same Wi-Fi, open `http://<laptop-LAN-IP>:8080`. Both devices use the same SQLite reading list and preferences. The layout adapts to phone widths and a 13-inch MacBook. Set `SIGNAL_HOST=127.0.0.1` before `sh run.sh` for laptop-only access.
 
-## Later: a shared URL
+## Cloud hosting
 
-Public hosting is a separate next step. This project is not deployed to a free hosting service yet. A deployment needs a running service for collection and persistent storage for `SIGNAL_DB`; an ephemeral or sleeping free instance alone cannot provide reliable daily collection and saved history. A public multi-user edition should keep bookmarks/preferences separate per visitor and restrict global collection/settings actions. The current local edition deliberately shares one personal reading list and settings across devices.
+A cloud edition is prepared in `cloud/`. It uses Cloudflare Workers + D1 and a daily GitHub Actions RSS collector. See [cloud/README.md](cloud/README.md) for deployment, free-tier limits, and verification. It is not live until Cloudflare deployment and the first scheduled-collector run have been verified.
 
-The RSS-only approach needs no model hosting. If AI features become useful later, they can be added as an optional enhancement without making RSS collection depend on them. Choose a provider and hosting plan at that time rather than assuming free cloud inference or always-on hosting is available.
+The public edition shares news while keeping bookmarks/read state/preferences in each visitor's browser. The local edition continues to share a personal SQLite reading list across your devices on the same Wi-Fi. RSS collection does not depend on AI; optional open-weight cloud summaries can be evaluated later.
 
 ## Checks and data
 
