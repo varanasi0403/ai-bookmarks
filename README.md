@@ -1,8 +1,8 @@
-# Signal · Your AI engineering briefing
+# Signal · Your AI ecosystem RSS reader
 
-A personal AI news desk for an AI/ML software engineer: applications, agents, libraries, model weights, training, system design, and Oracle / OCI. Responsive browser UI, SQLite reading list, source links, per-topic filtering, search, read state, and adjustable collection interval. No Node or global Python packages required.
+A dark-mode RSS reader for AI applications, model releases and weights, libraries, training, system design, local AI, routing tools, and optional Oracle / OCI coverage. It uses publisher excerpts and keyword filtering. No language model, AI summary, subscription, or API key is required.
 
-## Start
+## Run
 
 ```sh
 cd /Users/divyanshvaranasi/Dev/ai-brief
@@ -10,60 +10,38 @@ sh setup.sh
 sh run.sh
 ```
 
-Open http://127.0.0.1:8080. No app password is required. Setup only installs packages inside `.venv`. Without a configured proxy, the app still collects real publisher excerpts and labels them honestly. It never inserts demo news.
+Open http://localhost:8080. The app has no password. Dependencies stay in `.venv` and do not change global Python packages. The app does not run or use a LiteLLM proxy. An old ignored `.proxy-venv` from previous setup can be removed manually if you want to reclaim disk space.
 
-## Connect your ChatGPT subscription through LiteLLM
+## Daily updates and retained history
 
-LiteLLM documents a `chatgpt/` subscription provider with OAuth login: https://docs.litellm.ai/docs/providers/chatgpt/ . This is separate from paid OpenAI API billing. Use a ChatGPT account and model supported by that provider and your plan. Subscription quotas apply; availability and provider compatibility can change.
+Collection runs on startup when due, every 24 hours by default, and whenever you click **Refresh briefing**. Change the interval (1–168 hours), topics, and enabled source feeds under **Tune your signal**.
 
-In a terminal, install the proxy in its own environment:
+Articles, bookmarks, read state, preferences, and the last collection time are stored in `data/signal.db`. Removing AI integration does not remove any existing articles or bookmarks. Refreshes add new URLs without resetting saved/read state. Collected history is not automatically deleted; **All collected** includes older stored articles. The default screen shows the past seven days and eight diverse picks, with **Show more signals** for more.
 
-```sh
-cd /Users/divyanshvaranasi/Dev/ai-brief
-python3 -m venv .proxy-venv
-.proxy-venv/bin/python -m pip install 'litellm[proxy]>=1.109.0,<2' python-dotenv
-.proxy-venv/bin/python setup_proxy.py
-```
+The scheduler works while the server is running and awake. If the laptop sleeps or the process stops, collection resumes when it runs again and refreshes if overdue. It cannot guarantee catching every post published while offline: publishers can limit how much history their feeds retain. Each collection inspects up to 35 entries per source and accepts dated entries from the past 30 days. Missing publication dates are labeled and use collection time for filtering. Source errors appear under **Sources**; existing data stays available.
 
-Follow the displayed device-code login in your browser. Device-code login must be allowed in your ChatGPT security settings (or by your workspace administrator). Login tokens stay in this project's ignored `.tokens/` directory. `setup_proxy.py` writes a random local proxy key into the ignored `.env`. Do not share these files.
+## Sources and excerpts
 
-Then start the proxy in one terminal:
+22 official RSS/Atom feeds: OpenAI, Hugging Face, Google Research, NVIDIA Developer, LangChain releases, Oracle AI, Oracle Cloud, PyTorch releases, vLLM releases, Transformers releases, Google DeepMind, Google AI, Google Gen AI SDK, Anthropic SDK, Claude Code, Ollama, Open WebUI, LiteLLM releases, OmniRoute, LM Studio SDK, OpenRouter Blog, and OpenRouter SDK.
 
-```sh
-sh run-proxy.sh
-```
+LiteLLM is a news source only, just like the other projects. SDK feeds report SDK releases, not every vendor announcement. Source filtering is configurable without deleting previously collected history. Oracle is one optional source family; source diversity prevents one publisher from dominating the first picks.
 
-Restart `sh run.sh` in another terminal and click **Refresh briefing**. `litellm.yaml` maps `daily-brief` to `chatgpt/gpt-6.1-sol`; change it if your account requires another supported model. Keep the proxy on loopback and use a single worker. If login expires or gets revoked, rerun `setup_proxy.py`, restart the proxy, and refresh. The app shows a connection notice and retains publisher excerpts when summarization fails.
+Cards show cleaned publisher excerpts, shortened to 440 characters, with **Read original** links to the complete article. Some feeds provide only a title. Relevance is a keyword heuristic. Tracking URL parameters are removed to reduce duplicates; related coverage at different URLs is not merged.
 
-For an existing OpenAI-compatible LiteLLM proxy, set `LITELLM_BASE_URL` (including `/v1`), `LITELLM_MODEL`, and `LITELLM_API_KEY` directly in `.env`, then restart the app. There is no automatic fallback to a separately billed OpenAI API.
+## Laptop and phone
 
-## Phone access
+The app serves your local network on port 8080 by default. On a phone connected to the same Wi-Fi, open `http://<laptop-LAN-IP>:8080`. Both devices use the same SQLite reading list and preferences. The layout adapts to phone widths and a 13-inch MacBook. Set `SIGNAL_HOST=127.0.0.1` before `sh run.sh` for laptop-only access.
 
-The server listens on your local network by default. For a phone on the same trusted Wi-Fi, run:
+## Later: a shared URL
 
-```sh
-SIGNAL_HOST=0.0.0.0 sh run.sh
-```
+Public hosting is a separate next step. This project is not deployed to a free hosting service yet. A deployment needs a running service for collection and persistent storage for `SIGNAL_DB`; an ephemeral or sleeping free instance alone cannot provide reliable daily collection and saved history. A public multi-user edition should keep bookmarks/preferences separate per visitor and restrict global collection/settings actions. The current local edition deliberately shares one personal reading list and settings across devices.
 
-Open `http://<your-laptop-LAN-IP>:8080` on your phone — no app password is required. Bookmarks and preferences are shared through SQLite. The laptop and server must be running and awake. Local HTTP is intended for trusted Wi-Fi only. For access away from home, use a private VPN such as Tailscale or deploy behind HTTPS with authentication; remote hosting is not configured by this project. Do not port-forward the local HTTP server to the public internet.
+The RSS-only approach needs no model hosting. If AI features become useful later, they can be added as an optional enhancement without making RSS collection depend on them. Choose a provider and hosting plan at that time rather than assuming free cloud inference or always-on hosting is available.
 
-## Collection and personalization
-
-- Official RSS/Atom sources (22 endpoints): OpenAI, Hugging Face, Google Research, NVIDIA, LangChain releases, Oracle AI, Oracle Cloud, PyTorch releases, vLLM releases, and Transformers releases, Google DeepMind, Google AI, Google Gen AI SDK, Anthropic SDK, Claude Code, Ollama, Open WebUI, LiteLLM, OmniRoute, LM Studio SDK, OpenRouter Blog, and OpenRouter SDK releases. SDK release feeds cover SDK changes, not every provider announcement.
-- Concurrent collection on startup, on demand, and every 24 hours by default. Configure 1–168 hours in **Tune your signal**. While the server is off or asleep there is no collection; it catches up when running again.
-- Up to 35 entries per source, limited to the past 30 days when dates exist. Missing dates are labeled unavailable and use collection time for filtering. The default screen covers seven days.
-- URL normalization removes tracking parameters and deduplicates matching source URLs. Related coverage across different URLs is not merged.
-- Keyword classification and ranking are deterministic heuristics, not LLM relevance scores. Technical relevance filters skip generic announcements; the first picks are diversified across sources, treating Oracle as one family. The initial view shows eight updates, with more available on request. Preferences filter topics before ingestion and in the briefing. The reading list remains accessible across topic changes.
-- Up to 8 previously unsummarized articles per refresh by default (configurable 1–30). This limits calls per refresh, not per calendar day. Only articles from the last seven days are summarized. One proxy failure stops that refresh's model calls.
-- AI sees titles and publisher feed excerpts, not full linked articles. Briefs, relevance explanations, and suggested next steps are grounded in that excerpt; original pages provide complete details. Treat summaries as a reading aid.
-- Source failures are visible under **Sources** and retried next collection. A source can change its RSS endpoint; edit `SOURCES` in `app/main.py` if needed. This is feed monitoring, not exhaustive live web search.
-
-## Development
+## Checks and data
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-Tests use a temporary SQLite database and mocked HTTP for feed freshness, deduplication, retained bookmarks, summary payloads, password-free access, cross-origin mutation protection, and settings validation. Live network and model integration need a separate run with your login. `requirements.txt` pins the application dependencies. The optional proxy is isolated in `.proxy-venv`; record the working proxy version after login with `.proxy-venv/bin/python -m pip freeze > proxy-requirements.lock` if you want to reproduce it.
-
-Single-user, single-process application. Use one Uvicorn process to avoid duplicate scheduled work. The app has no login, as requested. Keep access on trusted Wi-Fi or your private VPN. Set `SIGNAL_HOST=127.0.0.1` for laptop-only use. Credentials never reach the browser UI. Data stays in ignored `data/signal.db`. Back up that file while the server is stopped. Delete `.venv` and `.proxy-venv` to remove installed dependencies; global packages are untouched.
+Use one Uvicorn process to avoid duplicate scheduled work. Back up `data/signal.db` with the server stopped. `SIGNAL_DB` can point to persistent storage. Existing databases from the AI-enabled version remain compatible; unused legacy summary columns are ignored and never returned to the UI. No data migration deletes collected articles.

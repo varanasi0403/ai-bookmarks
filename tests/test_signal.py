@@ -2,7 +2,7 @@ import asyncio
 import json
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import patch
 import httpx
@@ -41,28 +41,54 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(rows[0]['saved'], 1)
         self.assertIsNone(rows[0]['published'])
 
-    def test_summary_request_and_validation(self):
-        article = dict(id='a', title='New model', source='Test', excerpt='Source evidence', topic='Models & weights')
+    def test_refresh_uses_only_rss_and_preserves_existing_history(self):
         with m.connect() as db:
-            db.execute('INSERT INTO articles (id) VALUES (?)', ('a',))
+            db.execute('INSERT INTO articles(id,title,source,excerpt,saved,seen) VALUES (?,?,?,?,?,?)',
+                       ('old','Saved model','OpenAI','Model details',1,1))
+        feed=b'<rss version="2.0"><channel><item><title>New model</title><link>https://example.com/new</link><description>New model weights</description></item></channel></rss>'
+        calls=[]
+        original_client=httpx.AsyncClient
         def handler(request):
-            payload=json.loads(request.content)
-            self.assertNotIn('max_tokens', payload)
-            self.assertIn('UNTRUSTED',payload['messages'][0]['content'])
-            return httpx.Response(200,json={'choices':[{'message':{'content':json.dumps(dict(summary='Brief',why='Useful',action='Try it'))}}]})
-        async def run():
-            async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
-                await m.summarize(c, article)
-        asyncio.run(run())
+            calls.append((request.method,str(request.url)))
+            return httpx.Response(200,content=feed)
+        def client_factory(**kwargs):
+            return original_client(transport=httpx.MockTransport(handler),**kwargs)
+        with patch.object(m,'SOURCES',[('OpenAI','https://example.com/rss','Models & weights')]), patch.object(m.httpx,'AsyncClient',client_factory):
+            asyncio.run(m.refresh())
+        self.assertEqual(calls,[('GET','https://example.com/rss')])
         with m.connect() as db:
-            self.assertEqual(db.execute('SELECT ai FROM articles').fetchone()[0], 1)
+            self.assertEqual(db.execute('SELECT saved,seen FROM articles WHERE id=?',('old',)).fetchone()[:],(1,1))
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM articles').fetchone()[0],2)
+        self.assertIsNotNone(m.get_state('last_refresh'))
+        self.assertFalse(m.get_state('refresh')['running'])
+
+    def test_daily_schedule_catches_up_after_restart(self):
+        self.assertTrue(m.refresh_due())
+        m.set_state('last_refresh',(datetime.now(timezone.utc)-timedelta(hours=23)).isoformat())
+        self.assertFalse(m.refresh_due())
+        m.init_db()
+        self.assertFalse(m.refresh_due())
+        m.set_state('last_refresh',(datetime.now(timezone.utc)-timedelta(hours=25)).isoformat())
+        self.assertTrue(m.refresh_due())
+
+    def test_legacy_summary_columns_are_not_returned(self):
+        with m.connect() as db:
+            db.execute("ALTER TABLE articles ADD COLUMN summary TEXT DEFAULT ''")
+            db.execute('ALTER TABLE articles ADD COLUMN ai INTEGER DEFAULT 0')
+            db.execute('INSERT INTO articles(id,title,source,excerpt,summary,ai) VALUES (?,?,?,?,?,?)',
+                       ('legacy','New model','OpenAI','Publisher text','Old generated summary',1))
+        article=TestClient(m.app).get('/api/articles').json()[0]
+        self.assertEqual(article['excerpt'],'Publisher text')
+        self.assertNotIn('summary',article)
+        self.assertNotIn('ai',article)
 
     def test_api_preferences_bookmarks_and_origin_without_password(self):
         client=TestClient(m.app)
         self.assertEqual(client.get('/api/status').status_code,200)
-        self.assertEqual(client.put('/api/preferences',json={'topics':['wrong'],'daily_limit':8,'refresh_hours':24}).status_code,400)
-        self.assertEqual(client.put('/api/preferences',json={'topics':['Oracle & OCI'],'daily_limit':3,'refresh_hours':12}).status_code,200)
-        self.assertEqual(m.preferences()['daily_limit'],3)
+        self.assertEqual(client.put('/api/preferences',json={'topics':['wrong'],'refresh_hours':24}).status_code,400)
+        self.assertEqual(client.put('/api/preferences',json={'topics':['Oracle & OCI'],'refresh_hours':12}).status_code,200)
+        self.assertEqual(m.preferences()['refresh_hours'],12)
+        self.assertNotIn('proxy_configured',client.get('/api/status').json())
         with m.connect() as db:
             db.execute('INSERT INTO articles(id) VALUES (?)',('saved-test',))
         self.assertEqual(client.patch('/api/articles/saved-test',json={'saved':True}).status_code,200)
@@ -70,9 +96,16 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(client.post('/api/refresh',headers={'Origin':'https://evil.example'}).status_code,403)
         self.assertEqual(client.patch('/api/articles/missing',json={'saved':True}).status_code,404)
 
-    def test_source_diversity_keeps_oracle_optional(self):
-        picks=m.diverse_picks([{'source':'Oracle AI'},{'source':'Oracle Cloud'},{'source':'Ollama releases'},{'source':'OpenAI'}],3)
-        self.assertEqual([a['source'] for a in picks],['Oracle AI','Ollama releases','OpenAI'])
+    def test_source_preferences_are_validated_and_persisted(self):
+        client=TestClient(m.app)
+        payload={'topics':['Libraries & tools'],'refresh_hours':24,'sources':['Ollama releases']}
+        self.assertEqual(client.put('/api/preferences',json=payload).status_code,200)
+        m.init_db()
+        self.assertEqual(m.preferences()['sources'],['Ollama releases'])
+        statuses=client.get('/api/status').json()['sources']
+        self.assertEqual([s['name'] for s in statuses if s['enabled']],['Ollama releases'])
+        payload['sources']=['Unknown feed']
+        self.assertEqual(client.put('/api/preferences',json=payload).status_code,400)
 
     def test_relevance_excludes_generic_updates(self):
         self.assertFalse(m.relevant('Veteran discounts', 'Free workshops in five cities', 'OpenAI'))
