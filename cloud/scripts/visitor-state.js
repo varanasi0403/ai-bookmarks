@@ -16,13 +16,16 @@ async function hostedApi(path,options={}) {
     saveReaderState(state);return {ok:true};
   }
   if(options.method&&options.method!=='GET') throw Error('The shared feed is read-only');
-  const r=await fetch('/api'+path,{cache:'default'});
+  const r=await fetch('/api'+path,{cache:'no-store'});
   if(!r.ok)throw Error('Could not load the shared feed. Please retry.');
   const data=await r.json();
   if(path==='/status'&&state.preferences) {
     const selected=state.preferences;
-    data.preferences={...data.preferences,topics:selected.topics,sources:selected.sources};
-    data.sources=data.sources.map(s=>({...s,enabled:selected.sources.includes(s.name)}));
+    const available=data.sources.map(s=>s.name);
+    const enabled=selected.sources.filter(name=>available.includes(name));
+    const active=enabled.length?enabled:available;
+    data.preferences={...data.preferences,topics:selected.topics,sources:active};
+    data.sources=data.sources.map(s=>({...s,enabled:active.includes(s.name)}));
   }
   if(path==='/articles') {
     const loaded=new Map(data.map(a=>[a.id,{...a,...(state.marks?.[a.id]||{})}]));

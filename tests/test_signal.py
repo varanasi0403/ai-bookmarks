@@ -98,12 +98,12 @@ class SignalTests(unittest.TestCase):
 
     def test_source_preferences_are_validated_and_persisted(self):
         client=TestClient(m.app)
-        payload={'topics':['Libraries & tools'],'refresh_hours':24,'sources':['Ollama releases']}
+        payload={'topics':['Libraries & tools'],'refresh_hours':24,'sources':['NVIDIA Developer']}
         self.assertEqual(client.put('/api/preferences',json=payload).status_code,200)
         m.init_db()
-        self.assertEqual(m.preferences()['sources'],['Ollama releases'])
+        self.assertEqual(m.preferences()['sources'],['NVIDIA Developer'])
         statuses=client.get('/api/status').json()['sources']
-        self.assertEqual([s['name'] for s in statuses if s['enabled']],['Ollama releases'])
+        self.assertEqual([s['name'] for s in statuses if s['enabled']],['NVIDIA Developer'])
         payload['sources']=['Unknown feed']
         self.assertEqual(client.put('/api/preferences',json=payload).status_code,400)
 

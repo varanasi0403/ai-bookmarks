@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import worker,{validArticle,summarize,snapshot} from '../src/index.js';
 const id='a'.repeat(20);
 const article={id,title:'New model',url:'https://example.com/model',source:'OpenAI',published:null,fetched:'2026-11-13T00:00:00Z',excerpt:'A model with published weights.',topic:'Models & weights',score:70};
-function database({cached=null,budget=true}={}){
+function database({cached=null,budget=true,storedArticle=null}={}){
  const writes=[];
  return {writes,prepare(sql){return{bind(...values){return{
-  async first(){if(sql.startsWith('SELECT summary'))return cached;if(sql.startsWith('INSERT INTO summaries'))return{article_id:id};if(sql.startsWith('INSERT INTO summary_usage'))return budget?{used:1}:null;throw Error('Unexpected query');},
+  async first(){if(sql.startsWith('SELECT summary'))return cached;if(sql.startsWith('SELECT id,title'))return storedArticle;if(sql.startsWith('INSERT INTO summaries'))return{article_id:id};if(sql.startsWith('INSERT INTO summary_usage'))return budget?{used:1}:null;throw Error('Unexpected query');},
   async run(){writes.push({sql,values});return{success:true};}
  }}}}};
 }
@@ -47,4 +47,12 @@ test('public visitors cannot change shared preferences or make cross-origin summ
 test('news snapshots are streamed without model calls',async()=>{
  const response=await snapshot('articles.json',new Request('https://app.example/api/articles'),{},async url=>{assert.ok(url.startsWith('https://raw.githubusercontent.com/varanasi0403/ai-bookmarks/'));return Response.json([article]);});
  assert.equal((await response.json())[0].id,id);
+});
+
+test('newly collected D1 articles can be summarized without a GitHub item file',async()=>{
+ const response=await summarize(request(),{DB:database({storedArticle:article}),GROQ_API_KEY:'test-only'},id,async url=>{
+  assert.equal(url,'https://api.groq.com/openai/v1/chat/completions');
+  return Response.json({choices:[{message:{content:'A summary of the new article.'}}]});
+ });
+ assert.equal(response.status,200);assert.equal((await response.json()).summary,'A summary of the new article.');
 });

@@ -2,39 +2,41 @@
 
 [Live reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) · [Component and cost overview](../docs/AI-BookMarks-Overview.md)
 
-Cloudflare Workers serves the dark, responsive reader. GitHub Actions collects RSS around 07:00 IST and commits public JSON snapshots under `feed/`, using only the built-in GITHUB_TOKEN. No deployment secret is required for daily RSS collection. The first workflow run succeeded. Bookmarks, read state and preferences remain in each visitor's browser; they do not sync between devices.
+Cloudflare Workers serves the dark responsive reader, collects official article/blog RSS feeds, and stores history and AI summary caches in D1. GitHub release feeds are excluded. Personal bookmarks, read state and preferences remain in each browser, without cross-device sync.
+
+## Automatic collection and manual sync
+
+A native Cloudflare Cron Trigger runs every two minutes and checks one source per invocation. The current catalog completes a rotation in approximately 18 minutes. A shared ten-minute cooldown per source prevents repeated fetching by simultaneous readers. The collector parses at most ten recent entries per check, uses stable URL IDs, and preserves previous history when a publisher is unavailable. Publisher feed retention still limits what can be recovered after a long outage.
+
+**Sync latest feed** requests actual collection for every catalog source with three concurrent requests, shows progress, and then reloads D1 with browser caching disabled. Recently checked sources reuse their existing articles; the completion message explains the cooldown. Source failures are shown honestly and do not delete old articles. The update time is the latest successful source check, not a claim that every publisher produced a new article. A notice appears if successful checks are more than 90 minutes behind.
+
+`/api/status` exposes `scheduler_last_run` and `scheduler_last_result`, recorded by the scheduled handler independently of manual sync. Check these fields to verify automatic execution. Cloudflare may take up to 15 minutes to propagate a new Cron Trigger. Exact execution times are not a service guarantee.
+
+GitHub Actions is now a **manual/push-triggered RSS snapshot backup**, rather than the production scheduler. The original daily GitHub trigger missed its first scheduled event. A successful push-triggered workflow did not prove scheduled execution. Production collection no longer depends on GitHub Actions or a GitHub token.
 
 ## Build and deploy
 
-Python packages belong in the root `.venv`; Node packages belong in `cloud/node_modules`. With Node 22+ and pnpm available:
+Python packages remain in `.venv`; Node packages, including `fast-xml-parser`, live in `cloud/node_modules`. With Node 22+ and pnpm available:
 
 ```sh
 pnpm --dir cloud install --frozen-lockfile
 .venv/bin/python cloud/scripts/export_catalog.py
 node cloud/scripts/build.mjs
-python3 cloud/manage.py login --scopes account:read user:read workers:write workers_scripts:write d1:write
 python3 cloud/manage.py d1 migrations apply DB --remote
 python3 cloud/manage.py deploy
 ```
 
-Reuse the existing D1 binding in `wrangler.jsonc`. For a new account, create a database and replace both account/database IDs with the actual returned values before deploying. `manage.py` keeps Wrangler configuration and logs project-local. Generated frontend assets are ignored; rebuild them before deployment. Deployment is manual; daily RSS publication does not redeploy the Worker.
-
-`cloud/src/index.js` reads public snapshots from `varanasi0403/ai-bookmarks`. If forking, change this repository constant. Initial news remains in D1 as a fallback for non-successful upstream responses. Caches may delay updated feed visibility by about five minutes.
+Reuse the D1 binding in `wrangler.jsonc`. Deployment uses the existing project-local Cloudflare login. `manage.py` keeps configuration/logs project-local. Rebuild generated assets before deploying. `wrangler.jsonc` declares the native schedule, so deployments preserve it.
 
 ## Optional summaries
 
-Create a Groq Free-plan key, then store it using `python3 cloud/manage.py secret put GROQ_API_KEY`. Never commit a key. The optional **AI summary** button uses open-weight `openai/gpt-oss-20b`, based only on the title and at most 1,500 characters of the publisher excerpt; it does not read the full article. RSS works without the key. The key is never sent to visitors.
+Groq hosts open-weight `openai/gpt-oss-20b`. Summaries use the article title and at most 1,500 characters of the publisher excerpt; they do not read the full article. Store the Groq Free-plan key with `python3 cloud/manage.py secret put GROQ_API_KEY`. Never commit keys. RSS works without Groq. D1 caches summaries and atomically limits new provider calls to 20 per UTC day across all visitors. Failed provider calls count toward that allowance; there is no paid fallback.
 
-D1 caches successful summaries and atomically limits the site to 20 new model calls per UTC day. Concurrent requests share pending/cache state. Failed calls count toward the limit. Free-provider failures show a retry message and leave excerpts available. There is no paid fallback. A public visitor can consume the shared daily allowance; cached summaries remain available.
-
-## Collector and checks
+## Verification and cost
 
 ```sh
-.venv/bin/python cloud/scripts/publish_feed.py
-node --test cloud/tests/worker.test.mjs
+node --test cloud/tests/*.test.mjs
 .venv/bin/python -m unittest discover -s tests -q
 ```
 
-The collector starts from the previous snapshot and adds new news. No successful sources means no publication. The active snapshot retains up to 5,000 entries; per-item files support summary lookup for older articles. Original publisher URLs remain available. In GitHub, use **Daily RSS collection → Run workflow** to collect manually; **Sync latest feed** in the reader only reloads published data.
-
-Keep Cloudflare and Groq on Free plans. Standard Actions runners are free for this public repository. Quotas can stop service; paid account upgrades can incur charges. See the linked overview for official pricing references and operating limits.
+Verify native scheduled execution using `/api/status`, source timestamps using the Sources screen, and manual collection using the actual Sync button. Keep Cloudflare and Groq on Free plans. Requests, CPU, D1 reads/writes and Groq have limits. Quotas can stop service, and upgrading an account to a paid plan can incur charges. The collector processes one source per scheduled invocation to keep individual CPU usage small. See the overview for official pricing references.

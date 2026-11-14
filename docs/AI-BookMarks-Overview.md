@@ -7,18 +7,18 @@ Built by [Divyansh Varanasi](https://github.com/varanasi0403).
 | Component | What we used |
 | --- | --- |
 | Interface | HTML, CSS and vanilla JavaScript; dark mode and responsive laptop/phone layouts. |
-| RSS collection | Python, httpx and feedparser; 22 official RSS/Atom feeds, topic filtering and URL deduplication. |
+| RSS collection | Official article/blog RSS feeds; GitHub release feeds excluded. Python/httpx/feedparser locally, JavaScript/fast-xml-parser in the cloud. |
 | Local development | FastAPI + Uvicorn + SQLite; Python dependencies isolated in `.venv`. |
-| Daily updates | GitHub Actions, scheduled around 07:00 IST; runs without your laptop. First cloud collection succeeded. |
-| News history | Versioned JSON snapshots in the public GitHub repo; keeps up to 5,000 entries in the active feed. Failed collections retain the previous feed. |
-| Hosting | Cloudflare Workers serves the JavaScript API and static frontend over HTTPS; news snapshots are cached. |
-| Database | Cloudflare D1 stores cached AI summaries and daily usage; initial news database provides an upstream-error fallback. |
+| Daily updates | Native Cloudflare Cron checks one source every two minutes; full rotation about 18 minutes. Works with the laptop off. |
+| News history | D1 retains collected articles; the reader serves up to 5,000 recent blog/article entries. Failed sources preserve history. GitHub snapshots remain a manual backup. |
+| Hosting | Cloudflare Workers serves the JavaScript API and static frontend over HTTPS. Sync collects fresh RSS data, then reloads D1 without stale snapshot caches. |
+| Database | Cloudflare D1 stores news, source checks, scheduler heartbeat, AI summaries and daily usage. |
 | Saved articles | Browser localStorage; no login. Saved/read state is separate on each browser/device. |
 | Optional AI summary | Groq hosts the open-weight `openai/gpt-oss-20b` model; summarizes the publisher excerpt on request. Results cached; site-wide limit of 20 new model calls per UTC day. |
 | Secrets | Groq key stored as a Cloudflare secret, never included in frontend or Git. No ChatGPT subscription or LiteLLM proxy is used. |
 | Deployment tools | Wrangler and Node packages installed inside the project, with a pnpm lockfile; Git over SSH to your existing `varanasi0403` account. |
 
-**Flow:** RSS feeds → scheduled Python collector → GitHub JSON snapshots → Cloudflare Worker → responsive reader. Optional summary → Groq → D1 cache → reader.
+**Flow:** RSS feeds → native Cloudflare collector → D1 → responsive reader. Sync triggers real collection, with a shared ten-minute cooldown per source. Optional summary → Groq → D1 cache → reader.
 
 ## Cost
 
@@ -30,6 +30,8 @@ Official references: [Workers limits](https://developers.cloudflare.com/workers/
 
 ## Practical limits
 
-GitHub can delay scheduled jobs; public-repository schedules can be disabled after 60 days without repository activity. The app shows the latest successful collection time and per-source status. Publishers control feed retention, so no RSS reader can guarantee every historical post. The cloud reader keeps preferences and bookmarks in the current browser, without cross-device sync.
+The original GitHub daily schedule missed its first event, so production now uses native Cloudflare Cron. The app shows the latest successful source check and per-source status; the API exposes a separate scheduler heartbeat. Exact schedule timing is not guaranteed. Publishers control feed retention, so no RSS reader can guarantee every historical post. The cloud reader keeps preferences and bookmarks in the current browser, without cross-device sync.
 
-Verified: first daily workflow completed successfully; live AI summary generated successfully; repeated request returned its cached result. The repository is now in the original account; no transfer email is needed.
+Verified before migration: push-triggered GitHub workflow, live AI summary and cached summary response. The push run did not verify the original daily schedule. The native collector and manual Sync were then deployed and tested against real publisher feeds. The repository is now in the original account; no transfer email is needed.
+
+Update: automatic collection now uses Cloudflare; GitHub Actions remains only a snapshot backup. Keep free provider plans and quotas in mind.

@@ -22,11 +22,9 @@ The scheduler works while the server is running and awake. If the laptop sleeps 
 
 ## Sources and excerpts
 
-22 official RSS/Atom feeds: OpenAI, Hugging Face, Google Research, NVIDIA Developer, LangChain releases, Oracle AI, Oracle Cloud, PyTorch releases, vLLM releases, Transformers releases, Google DeepMind, Google AI, Google Gen AI SDK, Anthropic SDK, Claude Code, Ollama, Open WebUI, LiteLLM releases, OmniRoute, LM Studio SDK, OpenRouter Blog, and OpenRouter SDK.
+The feed now includes official articles and blogs from OpenAI, Hugging Face, Google Research, NVIDIA Developer, Oracle AI/Cloud, Google DeepMind, Google AI and OpenRouter. GitHub repository release feeds have been removed. Oracle is optional. Existing saved articles remain available.
 
-LiteLLM is a news source only, just like the other projects. SDK feeds report SDK releases, not every vendor announcement. Source filtering is configurable without deleting previously collected history. Oracle is one optional source family; source diversity prevents one publisher from dominating the first picks.
-
-Cards show cleaned publisher excerpts, shortened to 440 characters, with **Read original** links to the complete article. Some feeds provide only a title. Relevance is a keyword heuristic. Tracking URL parameters are removed to reduce duplicates; related coverage at different URLs is not merged.
+Cards show cleaned publisher excerpts with original article links. Some publishers provide only a title. Topic relevance is a keyword heuristic; tracking URL parameters are removed to reduce duplicates. Related coverage at different URLs is not merged.
 
 ## Laptop and phone
 
@@ -34,9 +32,9 @@ The app serves your local network on port 8080 by default. On a phone connected 
 
 ## Cloud hosting
 
-The [live cloud reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) uses Cloudflare Workers, GitHub-hosted RSS snapshots, D1 summary caching, and a daily GitHub Actions collector. The first cloud collection succeeded. See [cloud/README.md](cloud/README.md) and the [component and cost overview](docs/AI-BookMarks-Overview.md).
+The [live cloud reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) uses Cloudflare Workers + D1. Native Cloudflare Cron checks one source every two minutes, completing a rotation in about 18 minutes. **Sync latest feed** requests actual RSS collection with a shared ten-minute per-source cooldown, then reloads the latest articles. GitHub Actions is a manual/push-triggered snapshot backup; production collection does not depend on its scheduler.
 
-The public edition shares news while keeping bookmarks/read state/preferences in each visitor's browser. The local edition continues to share a personal SQLite reading list across your devices on the same Wi-Fi. RSS collection does not depend on AI; optional summaries use the open-weight GPT-OSS 20B model hosted by Groq. Results are cached with a site-wide cap of 20 new calls per UTC day.
+Saved/read state and preferences belong to each browser. Optional summaries use open-weight GPT-OSS 20B via Groq, cached with a site-wide 20-call daily cap. See [cloud/README.md](cloud/README.md) and the [component/cost overview](docs/AI-BookMarks-Overview.md).
 
 ## Checks and data
 

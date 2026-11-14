@@ -36,24 +36,11 @@ SOURCES = [
     ('Hugging Face', 'https://huggingface.co/blog/feed.xml', 'Models & weights'),
     ('Google Research', 'https://research.google/blog/rss/', 'Training & research'),
     ('NVIDIA Developer', 'https://developer.nvidia.com/blog/feed/', 'Libraries & tools'),
-    ('LangChain releases', 'https://github.com/langchain-ai/langchain/releases.atom', 'AI applications'),
     ('Oracle AI', 'https://blogs.oracle.com/ai-and-datascience/rss', 'Oracle & OCI'),
     ('Oracle Cloud', 'https://blogs.oracle.com/cloud-infrastructure/rss', 'Oracle & OCI'),
-    ('PyTorch releases', 'https://github.com/pytorch/pytorch/releases.atom', 'Training & research'),
-    ('vLLM releases', 'https://github.com/vllm-project/vllm/releases.atom', 'Libraries & tools'),
-    ('Transformers releases', 'https://github.com/huggingface/transformers/releases.atom', 'Libraries & tools'),
     ('Google DeepMind', 'https://deepmind.google/blog/rss.xml', 'Models & weights'),
     ('Google AI', 'https://blog.google/technology/ai/rss/', 'Models & weights'),
-    ('Google Gen AI SDK releases', 'https://github.com/googleapis/python-genai/releases.atom', 'Libraries & tools'),
-    ('Anthropic SDK releases', 'https://github.com/anthropics/anthropic-sdk-python/releases.atom', 'Libraries & tools'),
-    ('Claude Code releases', 'https://github.com/anthropics/claude-code/releases.atom', 'AI applications'),
-    ('Ollama releases', 'https://github.com/ollama/ollama/releases.atom', 'Libraries & tools'),
-    ('Open WebUI releases', 'https://github.com/open-webui/open-webui/releases.atom', 'AI applications'),
-    ('LiteLLM releases', 'https://github.com/BerriAI/litellm/releases.atom', 'Libraries & tools'),
-    ('OmniRoute releases', 'https://github.com/cheaper-inference/OmniRoute/releases.atom', 'Libraries & tools'),
-    ('LM Studio SDK releases', 'https://github.com/lmstudio-ai/lmstudio-js/releases.atom', 'Libraries & tools'),
     ('OpenRouter Blog', 'https://openrouter.ai/blog/feed.xml', 'AI applications'),
-    ('OpenRouter SDK releases', 'https://github.com/OpenRouterTeam/python-sdk/releases.atom', 'Libraries & tools'),
 ]
 log = logging.getLogger('briefly')
 refresh_lock = asyncio.Lock()
@@ -92,9 +79,11 @@ def set_state(key, value):
 
 def preferences():
     stored = get_state('preferences', {})
+    available = [source[0] for source in SOURCES]
+    selected = [name for name in stored.get('sources', available) if name in available] or available
     return {'topics': stored.get('topics', list(TOPICS)),
             'refresh_hours': stored.get('refresh_hours', 24),
-            'sources': stored.get('sources', [source[0] for source in SOURCES])}
+            'sources': selected}
 
 
 def clean(text):
