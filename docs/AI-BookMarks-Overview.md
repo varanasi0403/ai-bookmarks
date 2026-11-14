@@ -35,3 +35,5 @@ The original GitHub daily schedule missed its first event, so production now use
 Verified before migration: push-triggered GitHub workflow, live AI summary and cached summary response. The push run did not verify the original daily schedule. The native collector and manual Sync were then deployed and tested against real publisher feeds. The repository is now in the original account; no transfer email is needed.
 
 Update: automatic collection now uses Cloudflare; GitHub Actions remains only a snapshot backup. Keep free provider plans and quotas in mind.
+
+Native schedule verified on 14 November 2026 at 11:54 IST: an automatic Cloudflare event successfully checked NVIDIA Developer and processed eight eligible entries. This was a real scheduled event, independent of manual Sync. Manual collection and article-only filtering were also verified on the live site.

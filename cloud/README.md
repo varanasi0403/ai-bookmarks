@@ -40,3 +40,5 @@ node --test cloud/tests/*.test.mjs
 ```
 
 Verify native scheduled execution using `/api/status`, source timestamps using the Sources screen, and manual collection using the actual Sync button. Keep Cloudflare and Groq on Free plans. Requests, CPU, D1 reads/writes and Groq have limits. Quotas can stop service, and upgrading an account to a paid plan can incur charges. The collector processes one source per scheduled invocation to keep individual CPU usage small. See the overview for official pricing references.
+
+Verified on 14 November 2026: native scheduled event at 06:24 UTC / 11:54 IST completed successfully, with its heartbeat and source result visible through `/api/status`.
