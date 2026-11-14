@@ -3,12 +3,13 @@ $('#refresh').onclick=async()=>{
  if(refreshingFeeds)return;
  refreshingFeeds=true;const button=$('#refresh');button.disabled=true;
  const label=button.querySelector('span');let done=0;const results=[];
- const queue=status.sources.map((s,index)=>s.index??index);
+ const queue=status.sources.map((s,index)=>({...s,index:s.index??index})).filter(s=>s.enabled).map(s=>s.index);
+ const total=queue.length;
  const collect=async()=>{while(queue.length){const index=queue.shift();
   try{const r=await fetch('/api/refresh?source='+index,{method:'POST',cache:'no-store'});
    if(!r.ok)throw Error('Could not check source');results.push(await r.json());
   }catch{results.push({ok:false});}
-  done++;label.textContent=`Checking feeds ${done}/${status.sources.length}…`;
+  done++;label.textContent=`Checking feeds ${done}/${total}…`;
  }};
  try{
   await Promise.all(Array.from({length:3},()=>collect()));

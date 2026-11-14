@@ -18,7 +18,8 @@ const clickStart=js.indexOf("$('#refresh').onclick="),clickEnd=js.indexOf('\nfor
 if(clickStart<0||clickEnd<0)throw Error('Refresh adapter boundary changed');
 const refreshCode=await fs.readFile(path.join(root,'cloud/scripts/refresh-ui.js'),'utf8');
 js=js.slice(0,clickStart)+refreshCode+js.slice(clickEnd);
-js=js.replace("running?'Collecting updates…':'Refresh briefing'", "'Sync latest feed'");
+js=js.replace("$('#refresh').disabled=running;$('#refresh span').textContent=running?'Collecting updates…':'Refresh briefing';", "$('#refresh').disabled=running||refreshingFeeds;if(!refreshingFeeds)$('#refresh span').textContent='Sync latest feed';");
+js=js.replace('if(!document.hidden)load()', 'if(!document.hidden&&!refreshingFeeds)load()').replace('},6000)', '},60000)');
 js+="\n$('#refresh-hours').closest('label').hidden=true;\n";
 await fs.writeFile(path.join(publicDir,'static/app.js'),js);
 console.log('Built hosted reader: shared news, browser-owned preferences and bookmarks.');

@@ -27,7 +27,8 @@ def main():
         if not any(s['ok'] for s in checked):raise SystemExit('No successful RSS source; leaving published feed unchanged.')
         with m.connect() as db:
             articles=[dict(row) for row in db.execute('SELECT id,title,url,source,published,fetched,excerpt,topic,score FROM articles ORDER BY COALESCE(published,fetched) DESC LIMIT 5000')]
-        articles=[a for a in articles if m.relevant(a['title'],a['excerpt'],a['source'])]
+        active={source[0] for source in m.SOURCES}
+        articles=[a for a in articles if a['source'] in active and m.relevant(a['title'],a['excerpt'],a['source'])]
         for article in articles:article['excerpt']=article['excerpt'][:1500]
         statuses={s['name']:s for s in checked}
         sources=[{'name':name,'url':url,**statuses.get(name,{'ok':False,'checked':None}),'enabled':True} for name,url,_ in m.SOURCES]
