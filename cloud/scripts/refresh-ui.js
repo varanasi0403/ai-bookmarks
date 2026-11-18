@@ -16,9 +16,11 @@ $('#refresh').onclick=async()=>{
   // Fetch after the collection requests finish; do not reuse stale browser/edge snapshots.
   [status,articles]=await Promise.all([api('/status'),api('/articles')]);renderStatus();render();
   const failed=results.filter(r=>r.ok===false).length,checked=results.filter(r=>r.ok).length;
-  if(failed)toast(`Checked feeds; ${failed} unavailable. Previous articles are kept. See Sources.`);
+  const added=results.reduce((total,result)=>total+(result.added??0),0);
+  const update=added?`Added ${added} new article${added===1?'':'s'}.`:'No new articles added.';
+  if(failed)toast(`${update} ${failed} feed${failed===1?' was':'s were'} unavailable. Previous articles are kept. See Sources.`);
   else if(!checked)toast('Feeds were checked recently. Loaded the latest articles; try again after the 10-minute cooldown.');
-  else toast(`Checked ${checked} feeds and loaded the latest articles.`);
+  else toast(`Checked ${checked} feed${checked===1?'':'s'}. ${update}`);
  }catch(error){toast(error.message||'Could not refresh. Please try again.');}
  finally{refreshingFeeds=false;button.disabled=false;label.textContent='Sync latest feed';}
 };

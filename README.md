@@ -16,7 +16,7 @@ Open http://localhost:8080. The app has no password. Dependencies stay in `.venv
 
 Collection runs on startup when due, every 24 hours by default, and whenever you click **Refresh briefing**. Change the interval (1–168 hours), topics, and enabled source feeds under **Customize AI BookMarks**.
 
-Articles, bookmarks, read state, preferences, and the last collection time are stored in `data/signal.db`. Removing AI integration does not remove any existing articles or bookmarks. Refreshes add new URLs without resetting saved/read state. Collected history is not automatically deleted; **All collected** includes older stored articles. The default screen shows the past seven days and eight diverse picks, with **Show more updates** for more.
+Articles, bookmarks, read state, preferences, and the last collection time are stored in `data/signal.db`. Removing AI integration does not remove any existing articles or bookmarks. Refreshes add new URLs without resetting saved/read state. Collected history is not automatically deleted; **All collected** includes older stored articles. The default screen shows the past seven days and the eight newest articles, with **Show more updates** for more.
 
 The scheduler works while the server is running and awake. If the laptop sleeps or the process stops, collection resumes when it runs again and refreshes if overdue. It cannot guarantee catching every post published while offline: publishers can limit how much history their feeds retain. Each collection inspects up to 35 entries per source and accepts dated entries from the past 30 days. Missing publication dates are labeled and use collection time for filtering. Source errors appear under **Sources**; existing data stays available.
 

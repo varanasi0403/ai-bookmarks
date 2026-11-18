@@ -71,8 +71,9 @@ export async function collectSource(env,index,trigger='manual',fetcher=fetch,now
    .bind(a.id,a.title,a.url,a.source,a.published,a.fetched,a.excerpt,a.topic,a.score));
   writes.push(env.DB.prepare('UPDATE source_checks SET checked=?,last_success=?,ok=1,items=?,error=NULL,trigger=? WHERE name=?')
    .bind(stamp,stamp,articles.length,trigger,source.name));
-  await env.DB.batch(writes);
-  return{name:source.name,ok:true,items:articles.length,checked:stamp};
+  const results=await env.DB.batch(writes);
+  const added=results.slice(0,articles.length).reduce((total,result)=>total+result.meta.changes,0);
+  return{name:source.name,ok:true,items:articles.length,added,checked:stamp};
  }catch(error){
   await env.DB.prepare('UPDATE source_checks SET checked=?,ok=0,error=?,trigger=? WHERE name=?')
    .bind(stamp,'Source unavailable; keeping previous articles.',trigger,source.name).run();
