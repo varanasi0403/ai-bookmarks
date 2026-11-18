@@ -22,7 +22,7 @@ test('Sync collects enabled sources before loading the updated reader',async()=>
  assert.equal(x.messages[0],'Checked 2 feeds. Added 2 new articles.');
 });
 test('cooldown reuse is explained instead of claiming a fresh collection',async()=>{
- const x=ui({reply:{skipped:true}});await x.button.onclick();assert.match(x.messages[0],/10-minute cooldown/);
+ const x=ui({reply:{skipped:true}});await x.button.onclick();assert.match(x.messages[0],/within the last minute/);
 });
 test('publisher failures keep the reader and report the problem',async()=>{
  const x=ui({reply:{ok:false}});await x.button.onclick();assert.match(x.messages[0],/2 feeds were unavailable/);assert.match(x.messages[0],/Previous articles are kept/);

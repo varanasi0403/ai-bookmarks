@@ -32,7 +32,7 @@ The app serves your local network on port 8080 by default. On a phone connected 
 
 ## Cloud hosting
 
-The [live cloud reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) uses Cloudflare Workers + D1. Native Cloudflare Cron checks one source every two minutes, completing a rotation in about 18 minutes. **Sync latest feed** requests actual RSS collection with a shared ten-minute per-source cooldown, then reloads the latest articles. GitHub Actions is a manual/push-triggered snapshot backup; production collection does not depend on its scheduler.
+The [live cloud reader](https://ai-bookmarks-rss.ai-bookmarks-cloud.workers.dev/) uses Cloudflare Workers + D1. Native Cloudflare Cron checks one source every two minutes, completing a rotation in about 18 minutes. **Sync latest feed** requests actual RSS collection with a one-minute per-source limit for repeat manual syncs, then reloads the latest articles. GitHub Actions is a manual/push-triggered snapshot backup; production collection does not depend on its scheduler.
 
 Saved/read state and preferences belong to each browser. Optional summaries use open-weight GPT-OSS 20B via Groq, cached with a site-wide 20-call daily cap. See [cloud/README.md](cloud/README.md) and the [component/cost overview](docs/AI-BookMarks-Overview.md).
 

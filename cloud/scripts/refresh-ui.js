@@ -18,9 +18,10 @@ $('#refresh').onclick=async()=>{
   const failed=results.filter(r=>r.ok===false).length,checked=results.filter(r=>r.ok).length;
   const added=results.reduce((total,result)=>total+(result.added??0),0);
   const update=added?`Added ${added} new article${added===1?'':'s'}.`:'No new articles added.';
+  const skipped=results.filter(r=>r.skipped).length;
   if(failed)toast(`${update} ${failed} feed${failed===1?' was':'s were'} unavailable. Previous articles are kept. See Sources.`);
-  else if(!checked)toast('Feeds were checked recently. Loaded the latest articles; try again after the 10-minute cooldown.');
-  else toast(`Checked ${checked} feed${checked===1?'':'s'}. ${update}`);
+  else if(!checked)toast('Feeds are being checked or were synced within the last minute. Loaded the latest stored articles.');
+  else toast(`Checked ${checked} feed${checked===1?'':'s'}. ${update}${skipped?' Some feeds were already being checked or synced within the last minute.':''}`);
  }catch(error){toast(error.message||'Could not refresh. Please try again.');}
  finally{refreshingFeeds=false;button.disabled=false;label.textContent='Sync latest feed';}
 };

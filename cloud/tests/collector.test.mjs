@@ -21,7 +21,7 @@ test('unsafe URLs, old entries and unrelated announcements are excluded',async()
  assert.deepEqual(await parseFeed(rss.replace('14 Nov 2026','14 Oct 2026'),sources[0],now),[]);
  await assert.rejects(()=>parseFeed('<html>Not a feed</html>',sources[0],now));
 });
-function database(claim=true,articleChanges=1){const writes=[];return{writes,prepare(sql){return{bind(...values){return{async first(){return claim?{name:'OpenAI'}:null;},async run(){writes.push({sql,values});}}}}},async batch(statements){writes.push(...statements);return statements.map((_,i)=>({meta:{changes:i===statements.length-1?1:articleChanges}}));}};}
+function database(claim=true,articleChanges=1){const writes=[];return{writes,prepare(sql){return{bind(...values){return{sql,values,async first(){return claim?{name:'OpenAI'}:null;},async run(){writes.push({sql,values});}}}}},async batch(statements){writes.push(...statements);return statements.map((_,i)=>({meta:{changes:i===statements.length-1?1:articleChanges}}));}};}
 test('shared cooldown skips network collection for repeated clicks',async()=>{
  const result=await collectSource({DB:database(false)},0,'manual',()=>{throw Error('Network should not run');},now);
  assert.equal(result.skipped,true);
@@ -51,4 +51,15 @@ test('existing articles do not count as newly added',async()=>{
  assert.equal(result.ok,true);
  assert.equal(result.items,1);
  assert.equal(result.added,0);
+});
+
+test('scheduled checks release the lease while manual checks keep the repeat limit',async()=>{
+ const scheduled=database();
+ const manual=database();
+ const feed=async()=>new Response(rss);
+ await collectSource({DB:scheduled},0,'scheduled',feed,now);
+ await collectSource({DB:manual},0,'manual',feed,now);
+ const nextAttemptIndex=4;
+ assert.equal(scheduled.writes.at(-1).values[nextAttemptIndex],now.toISOString());
+ assert.equal(manual.writes.at(-1).values[nextAttemptIndex],new Date(+now+60_000).toISOString());
 });

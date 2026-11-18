@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { sources, topics, keywords } from './catalog.js';
-const COOLDOWN=10*60*1000;
+const LEASE_MS=60_000;
+const MANUAL_COOLDOWN_MS=60_000;
 const parser=new XMLParser({ignoreAttributes:false,removeNSPrefix:true,parseTagValue:false,processEntities:false,
   stopNodes:['*.content','*.description','*.summary','*.encoded']});
 const list=x=>Array.isArray(x)?x:x?[x]:[];
@@ -59,24 +60,26 @@ async function boundedText(response){
 }
 export async function collectSource(env,index,trigger='manual',fetcher=fetch,now=new Date()){
  const source=sources[index];if(!source)throw Error('Unknown source');
- const stamp=now.toISOString(),next=new Date(+now+COOLDOWN).toISOString();
- // One shared lease/cooldown prevents simultaneous readers repeatedly fetching a source.
+ const stamp=now.toISOString();
+ const leaseExpires=new Date(+now+LEASE_MS).toISOString();
+ // A scheduled check releases its lease on completion so the Sync button can fetch again.
+ const nextManualCheck=trigger==='manual'?new Date(+now+MANUAL_COOLDOWN_MS).toISOString():stamp;
  const claim=await env.DB.prepare("INSERT INTO source_checks(name,next_attempt) VALUES (?,?) ON CONFLICT(name) DO UPDATE SET next_attempt=excluded.next_attempt WHERE source_checks.next_attempt<=? RETURNING name")
-  .bind(source.name,next,stamp).first();
+  .bind(source.name,leaseExpires,stamp).first();
  if(!claim)return{name:source.name,skipped:true};
  try{
   const response=await fetcher(source.url,{headers:{'User-Agent':'AI-BookMarks-RSS/2.0'},redirect:'follow',signal:AbortSignal.timeout(20000)});
   const articles=await parseFeed(await boundedText(response),source,now);
   const writes=articles.map(a=>env.DB.prepare('INSERT OR IGNORE INTO articles(id,title,url,source,published,fetched,excerpt,topic,score) VALUES (?,?,?,?,?,?,?,?,?)')
    .bind(a.id,a.title,a.url,a.source,a.published,a.fetched,a.excerpt,a.topic,a.score));
-  writes.push(env.DB.prepare('UPDATE source_checks SET checked=?,last_success=?,ok=1,items=?,error=NULL,trigger=? WHERE name=?')
-   .bind(stamp,stamp,articles.length,trigger,source.name));
+  writes.push(env.DB.prepare('UPDATE source_checks SET checked=?,last_success=?,ok=1,items=?,error=NULL,trigger=?,next_attempt=? WHERE name=? AND next_attempt=?')
+   .bind(stamp,stamp,articles.length,trigger,nextManualCheck,source.name,leaseExpires));
   const results=await env.DB.batch(writes);
   const added=results.slice(0,articles.length).reduce((total,result)=>total+result.meta.changes,0);
   return{name:source.name,ok:true,items:articles.length,added,checked:stamp};
  }catch(error){
-  await env.DB.prepare('UPDATE source_checks SET checked=?,ok=0,error=?,trigger=? WHERE name=?')
-   .bind(stamp,'Source unavailable; keeping previous articles.',trigger,source.name).run();
+  await env.DB.prepare('UPDATE source_checks SET checked=?,ok=0,error=?,trigger=?,next_attempt=? WHERE name=? AND next_attempt=?')
+   .bind(stamp,'Source unavailable; keeping previous articles.',trigger,nextManualCheck,source.name,leaseExpires).run();
   console.error('RSS source failed:',source.name,error?.message);
   return{name:source.name,ok:false,checked:stamp};
  }
@@ -92,7 +95,7 @@ export async function collectionStatus(env){
  for(const r of results)if(r.checked)known.set(r.name,{...r,ok:Boolean(r.ok)});
  const successful=results.filter(r=>r.last_success).map(r=>r.last_success).sort();
  return{hosted:true,last_refresh:successful.at(-1)||baseline.last_refresh,refresh:{running:false},refresh_error:null,
-  collection_mode:'cloudflare',collection_interval_minutes:2*sources.length,refresh_cooldown_minutes:10,
+  collection_mode:'cloudflare',collection_interval_minutes:2*sources.length,refresh_cooldown_minutes:MANUAL_COOLDOWN_MS/60_000,
   scheduler_last_run:lastScheduled?.completed||null,scheduler_last_result:lastScheduled?.result||null,
   sources:sources.map((s,i)=>({...s,index:i,...(known.get(s.name)||{ok:false,checked:null}),enabled:true})),topics,
   preferences:{topics,sources:sources.map(s=>s.name),refresh_hours:1}};

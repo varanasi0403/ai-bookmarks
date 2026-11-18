@@ -7,7 +7,7 @@ for(const file of ['style.css','icon.svg']) await fs.copyFile(path.join(root,'ap
 let html=await fs.readFile(path.join(root,'app/static/index.html'),'utf8');
 html=html.replace('>DV</span>','>AI</span>').replace('Refresh briefing','Sync latest feed')
   .replace('RSS collection runs while the server is awake. Saved articles and collected history stay on disk. No model, subscription, or API key is needed.',
-    'Feeds are checked automatically in the cloud, with a full source rotation about every 18 minutes. Sync latest feed checks all sources now, with a shared 10-minute cooldown per source. Your saved articles and preferences stay in this browser.');
+    'Feeds are checked automatically in the cloud, with a full source rotation about every 18 minutes. Sync latest feed checks your enabled sources. Overlapping checks and repeat syncs within one minute are skipped. Your saved articles and preferences stay in this browser.');
 await fs.writeFile(path.join(publicDir,'index.html'),html);
 let js=await fs.readFile(path.join(root,'app/static/app.js'),'utf8');
 const visitor=await fs.readFile(path.join(root,'cloud/scripts/visitor-state.js'),'utf8');
