@@ -21,14 +21,14 @@ test('unsafe URLs, old entries and unrelated announcements are excluded',async()
  assert.deepEqual(await parseFeed(rss.replace('14 Nov 2026','14 Oct 2026'),sources[0],now),[]);
  await assert.rejects(()=>parseFeed('<html>Not a feed</html>',sources[0],now));
 });
-function database(claim=true){const writes=[];return{writes,prepare(sql){return{bind(...values){return{async first(){return claim?{name:'OpenAI'}:null;},async run(){writes.push({sql,values});}}}}},async batch(statements){writes.push(...statements);return[];}};}
+function database(claim=true,articleChanges=1){const writes=[];return{writes,prepare(sql){return{bind(...values){return{sql,values,async first(){return claim?{name:'OpenAI'}:null;},async run(){writes.push({sql,values});}}}}},async batch(statements){writes.push(...statements);return statements.map((_,i)=>({meta:{changes:i===statements.length-1?1:articleChanges}}));}};}
 test('shared cooldown skips network collection for repeated clicks',async()=>{
  const result=await collectSource({DB:database(false)},0,'manual',()=>{throw Error('Network should not run');},now);
  assert.equal(result.skipped,true);
 });
 test('successful collection persists articles and records the actual trigger',async()=>{
  const db=database();const result=await collectSource({DB:db},0,'scheduled',async url=>{assert.equal(url,sources[0].url);return new Response(rss);},now);
- assert.equal(result.ok,true);assert.equal(result.items,1);assert.equal(db.writes.length,2);
+ assert.equal(result.ok,true);assert.equal(result.items,1);assert.equal(result.added,1);assert.equal(db.writes.length,2);
 });
 test('publisher failures preserve history and report an unavailable source',async()=>{
  const db=database();const result=await collectSource({DB:db},0,'manual',async()=>new Response('Busy',{status:503}),now);
@@ -44,4 +44,22 @@ test('scheduled events execute collection and persist an independent scheduler h
  await scheduledCollection({scheduledTime:stamp},{DB:db},()=>{throw Error('Recent source must not be fetched twice');});
  assert.equal(db.writes.length,1);assert.equal(db.writes[0].values[0],'scheduler');
  const heartbeat=JSON.parse(db.writes[0].values[1]);assert.equal(heartbeat.scheduled,'2026-11-14T06:30:00.000Z');assert.equal(heartbeat.result.skipped,true);
+});
+
+test('existing articles do not count as newly added',async()=>{
+ const result=await collectSource({DB:database(true,0)},0,'manual',async()=>new Response(rss),now);
+ assert.equal(result.ok,true);
+ assert.equal(result.items,1);
+ assert.equal(result.added,0);
+});
+
+test('scheduled checks release the lease while manual checks keep the repeat limit',async()=>{
+ const scheduled=database();
+ const manual=database();
+ const feed=async()=>new Response(rss);
+ await collectSource({DB:scheduled},0,'scheduled',feed,now);
+ await collectSource({DB:manual},0,'manual',feed,now);
+ const nextAttemptIndex=4;
+ assert.equal(scheduled.writes.at(-1).values[nextAttemptIndex],now.toISOString());
+ assert.equal(manual.writes.at(-1).values[nextAttemptIndex],new Date(+now+60_000).toISOString());
 });
